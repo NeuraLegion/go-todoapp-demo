@@ -26,7 +26,7 @@ $ go run main.go
 
 > By default, the server in this example listens on port 9000. If you wish to use a different port, you can specify the `-p` option to configure the desired port.
 
-While having the server running, open a browser and type `http://localhost:3000/api`, and hit enter to explore the application.
+While having the server running, open a browser and type `http://localhost:9000/`, and hit enter to explore the application.
 
 ## Contributing
 
