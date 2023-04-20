@@ -69,7 +69,7 @@
                       <ul class="list-group">
                         <li class="list-group-item" :class="{ 'checked': todo.completed, 'not-checked': !todo.completed }" v-for="(todo, todoIndex) in todos" v-on:click="toggleTodo(todo, todoIndex)">
                             <i :class="{'fa fa-circle': !todo.completed, 'fa fa-check-circle text-success': todo.completed }">&nbsp;</i>
-                            <span :class="{ 'del': todo.completed }">@{ todo.title }</span>
+                            <span :class="{ 'del': todo.completed }" v-html="todo.title"></span>
                             <div class="btn-group float-right" role="group" aria-label="Basic example">
                               <button type="button" class="btn btn-success btn-sm custom-button" v-on:click.prevent.stop v-on:click="editTodo(todo, todoIndex)"><span class="fa fa-edit"></span></button>
                               <button type="button" class="btn btn-danger btn-sm custom-button" v-on:click.prevent.stop v-on:click="deleteTodo(todo, todoIndex)"><span class="fa fa-trash"></span></button>
