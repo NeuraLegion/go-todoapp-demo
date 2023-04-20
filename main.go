@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -30,6 +31,7 @@ type todo struct {
 //go:embed static/home.html
 var content embed.FS
 var todos = make(map[string]*todo)
+var todosMutex = sync.RWMutex{}
 
 func init() {
 	rnd = renderer.New()
@@ -73,7 +75,9 @@ func createTodo(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: time.Now(),
 	}
 
+	todosMutex.Lock()
 	todos[t.Id] = &t
+	todosMutex.Unlock()
 
 	rnd.JSON(w, http.StatusCreated, renderer.M{
 		"message": "Todo created successfully",
@@ -106,7 +110,9 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	todosMutex.Lock()
 	t := todos[id.String()]
+	todosMutex.Unlock()
 
 	if t == nil {
 		rnd.JSON(w, http.StatusProcessing, renderer.M{
@@ -125,9 +131,12 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 
 func fetchTodos(w http.ResponseWriter, r *http.Request) {
 	todoList := []*todo{}
+
+	todosMutex.Lock()
 	for _, t := range todos {
 		todoList = append(todoList, t)
 	}
+	todosMutex.Unlock()
 
 	rnd.JSON(w, http.StatusOK, renderer.M{
 		"data": todoList,
@@ -144,7 +153,9 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	todosMutex.Lock()
 	delete(todos, id.String())
+	todosMutex.Unlock()
 
 	rnd.JSON(w, http.StatusOK, renderer.M{
 		"message": "Todo deleted successfully",
