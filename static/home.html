@@ -9,43 +9,52 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
-      .card{
-        border-radius: 0 !important;
-        border: none;
-      }
-      .card-body{
-        padding: 0 !important;
-      }
-      .todo-title{
-        width: 100%;
-        background: #34495e;
-        color: #ecf0f1;
-        font-size: 30px;
-        font-weight: bold;
-        padding: 20px 10px;
-        text-align: center;
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-      }
-      .custom-input{
-        border-radius: 0 !important;
-        padding: 10px 10px !important;
-        border-bottom: none;
-      }
-      .custom-input:focus, .custom-input:active{
-        box-shadow: none !important;
-      }
-      .custom-button{
-        border-radius: 0 !important;
-        cursor: pointer;
-      }
-      .custom-button:focus, .custom-button:active{
-        box-shadow: none !important;
-      }
-      .list-group li{
-        cursor: pointer;
-        border-radius: 0 !important;
-      }
+        .card {
+            border: none;
+            border-radius: 0 !important;
+        }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        .todo-title {
+            background: #34495e;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            color: #ecf0f1;
+            font-size: 30px;
+            font-weight: bold;
+            padding: 20px 10px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .custom-input {
+            border-bottom: none;
+            border-radius: 0 !important;
+            padding: 10px 10px !important;
+        }
+
+        .custom-input:focus,
+        .custom-input:active {
+            box-shadow: none !important;
+        }
+
+        .custom-button {
+            border-radius: 0 !important;
+            cursor: pointer;
+        }
+
+        .custom-button:focus,
+        .custom-button:active {
+            box-shadow: none !important;
+        }
+
+        .list-group li {
+            border-radius: 0 !important;
+            cursor: pointer;
+        }
     </style>
   </head>
   <body>
@@ -56,6 +65,9 @@
                 <div class="card">
                   <div class="todo-title">
                     Todo Lists
+                  </div>
+                  <div class="search-container">
+                      <input type="text" v-model="searchText" class="form-control custom-input search-input" placeholder="Search...">
                   </div>
                   <div class="card-body">
                       <form v-on:submit.prevent>
@@ -76,6 +88,9 @@
                             </div>
                         </li>
                       </ul>
+                      <div v-if="searchText.length > 0">
+                          <p v-html="'Showing results for: ' + searchText"></p>
+                      </div>
                   </div>
                 </div>
             </div>
@@ -91,6 +106,7 @@
             data: {
                 showError: false,
                 enableEdit: false,
+                searchText: '',
                 todo: { id: '', title: '', completed: false },
                 todos: []
             },
@@ -98,7 +114,15 @@
                 const response = await this.$http.get('todo');
                 this.todos = response.body.data;
             },
+            computed: {
+                filteredTodos() {
+                    return this.todos.filter((todo) => this.searchTodo(todo));
+                }
+            },
             methods: {
+                searchTodo(todo) {
+                  return todo.title.toLowerCase().includes(this.searchText.toLowerCase());
+                },
                 async addTodo() {
                     if (this.todo.title === '') {
                         this.showError = true;
