@@ -28,6 +28,8 @@ $ go run main.go
 
 While having the server running, open a browser and type `http://localhost:9000/`, and hit enter to explore the application.
 
+> To access the comprehensive API documentation in the OpenAPI Specification (OAS) format, you can find the specification at the following path: [./docs/openapi3.yaml](./docs/openapi3.yaml).
+
 ## Contributing
 
 Contributions are welcome! Feel free to open a pull request or submit an issue.

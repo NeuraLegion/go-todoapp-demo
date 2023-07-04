@@ -1,0 +1,127 @@
+openapi: 3.0.0
+info:
+  title: Go Todo API
+  version: 1.0.0
+servers:
+  - url: http://localhost:9000
+paths:
+  /:
+    get:
+      summary: Home Page
+      responses:
+        '200':
+          description: OK
+  /todo:
+    get:
+      summary: Fetch Todos
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Todo'
+    post:
+      summary: Create Todo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoInput'
+            example:
+              title: Complete the remaining tasks for the project
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  todo_id:
+                    type: string
+  '/todo/{id}':
+    put:
+      summary: Update Todo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoInput'
+            example:
+              title: Workout for an hour
+              completed: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+    delete:
+      summary: Delete Todo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+components:
+  schemas:
+    Todo:
+      type: object
+      required:
+        - title
+        - id
+        - completed
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        completed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    TodoInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        completed:
+          type: boolean
