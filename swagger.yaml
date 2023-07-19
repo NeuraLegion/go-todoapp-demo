@@ -1,0 +1,100 @@
+openapi: 3.0.1
+info:
+  title: Todo App Demo GO
+  description: Todo App Demo GO
+  contact: {}
+  version: "1.0"
+servers:
+- url: http://localhost:9000/
+paths:
+  /:
+    get:
+      tags:
+      - chi-swagger
+      summary: This API can be used as health check for this application.
+      description: Tells if the chi-swagger APIs are working or not.
+      responses:
+        200:
+          description: api response
+          content:
+            application/json:
+              schema:
+                type: string
+  /todo:
+    post:
+      summary: add a new item to the todo list
+      operationId: create-todo
+      requestBody:
+        description: todo data
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/main.todo'
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.todo'
+      x-codegen-request-body-name: data
+  /todo/:
+    get:
+      summary: get all todo items
+      operationId: get-todo
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.todo'
+  /todo/{id}:
+    delete:
+      summary: delete a todo item by ID
+      operationId: delete-todo-by-id
+      parameters:
+      - name: id
+        in: path
+        description: todo ID
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.todo'
+    patch:
+      summary: Update ToDo Item
+      operationId: update-todo
+      parameters:
+      - name: id
+        in: path
+        description: todo ID
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/main.todo'
+components:
+  schemas:
+    main.todo:
+      type: object
+      properties:
+        completed:
+          type: boolean
+        created_at:
+          type: string
+        id:
+          type: string
+        title:
+          type: string
