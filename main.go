@@ -42,6 +42,10 @@ func init() {
 		log.Fatal(err)
 	}
 
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(50)
+	db.SetConnMaxLifetime(2 * time.Minute)
+
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS todos (
 			id TEXT PRIMARY KEY,
@@ -50,6 +54,11 @@ func init() {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_todos_title ON todos(title)`)
 	if err != nil {
 		log.Fatal(err)
 	}
