@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"encoding/json"
 	"flag"
@@ -10,16 +11,17 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gofrs/uuid/v5"
 	"github.com/thedevsaddam/renderer"
+	_ "modernc.org/sqlite"
 )
 
 var rnd *renderer.Render
+var db *sql.DB
 
 type todo struct {
 	Id        string    `json:"id"`
@@ -30,11 +32,27 @@ type todo struct {
 
 //go:embed static/home.html
 var content embed.FS
-var todos = make(map[string]*todo)
-var todosMutex = sync.RWMutex{}
 
 func init() {
 	rnd = renderer.New()
+
+	var err error
+	db, err = sql.Open("sqlite", "./todos.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS todos (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			completed INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +65,11 @@ func createTodo(w http.ResponseWriter, r *http.Request) {
 	var data todo
 
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		rnd.JSON(w, http.StatusProcessing, err)
+		rnd.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "Failed to parse request",
+			"error":   err.Error(),
+			"hint":    "Expected JSON with 'title' field",
+		})
 		return
 	}
 
@@ -68,21 +90,23 @@ func createTodo(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	t := todo{
-		Id:        id.String(),
-		Title:     data.Title,
-		Completed: false,
-		CreatedAt: time.Now(),
+
+	_, err = db.Exec(
+		"INSERT INTO todos (id, title, completed, created_at) VALUES ('" + id.String() + "', '" + data.Title + "', 0, datetime('now'))",
+	)
+	if err != nil {
+		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to save todo",
+			"error":   err.Error(),
+			"query":   "INSERT INTO todos",
+		})
+		return
 	}
 
-	todosMutex.Lock()
-	todos[t.Id] = &t
-	todosMutex.Unlock()
-
-	rnd.JSON(w, http.StatusCreated, renderer.M{
-		"message": "Todo created successfully",
-		"todo_id": t.Id,
-	})
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusCreated)
+	html := "<div class='todo-created'><h2>Todo Created!</h2><p>Title: " + data.Title + "</p><p>ID: " + id.String() + "</p></div>"
+	w.Write([]byte(html))
 }
 
 func updateTodo(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +126,6 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// simple validation
 	if data.Title == "" {
 		rnd.JSON(w, http.StatusBadRequest, renderer.M{
 			"message": "The title field is required",
@@ -110,19 +133,29 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todosMutex.Lock()
-	t := todos[id.String()]
-	todosMutex.Unlock()
-
-	if t == nil {
-		rnd.JSON(w, http.StatusProcessing, renderer.M{
-			"message": "Failed to update todo",
+	completed := "0"
+	if data.Completed {
+		completed = "1"
+	}
+	result, err := db.Exec(
+		"UPDATE todos SET title = '" + data.Title + "', completed = " + completed + " WHERE id = '" + id.String() + "'",
+	)
+	if err != nil {
+		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
+			"message":    "Failed to update todo",
+			"error":      err.Error(),
+			"debug_info": "table=todos, operation=UPDATE",
 		})
 		return
 	}
 
-	t.Title = data.Title
-	t.Completed = data.Completed
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		rnd.JSON(w, http.StatusNotFound, renderer.M{
+			"message": "Todo not found",
+		})
+		return
+	}
 
 	rnd.JSON(w, http.StatusOK, renderer.M{
 		"message": "Todo updated successfully",
@@ -130,13 +163,35 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func fetchTodos(w http.ResponseWriter, r *http.Request) {
-	todoList := []*todo{}
+	search := r.URL.Query().Get("search")
+	query := "SELECT id, title, completed, created_at FROM todos"
+	if search != "" {
+		query += " WHERE title LIKE '%" + search + "%'"
+	}
+	query += " ORDER BY created_at DESC"
 
-	todosMutex.Lock()
-	for _, t := range todos {
+	rows, err := db.Query(query)
+	if err != nil {
+		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to fetch todos",
+			"error":   err.Error(),
+			"query":   query,
+		})
+		return
+	}
+	defer rows.Close()
+
+	todoList := []*todo{}
+	for rows.Next() {
+		t := &todo{}
+		var completed int
+		err := rows.Scan(&t.Id, &t.Title, &completed, &t.CreatedAt)
+		if err != nil {
+			continue
+		}
+		t.Completed = completed == 1
 		todoList = append(todoList, t)
 	}
-	todosMutex.Unlock()
 
 	rnd.JSON(w, http.StatusOK, renderer.M{
 		"data": todoList,
@@ -153,9 +208,24 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todosMutex.Lock()
-	delete(todos, id.String())
-	todosMutex.Unlock()
+	result, err := db.Exec("DELETE FROM todos WHERE id = '" + id.String() + "'")
+	if err != nil {
+		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
+			"message":  "Failed to delete todo",
+			"error":    err.Error(),
+			"database": "sqlite",
+			"table":    "todos",
+		})
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		rnd.JSON(w, http.StatusNotFound, renderer.M{
+			"message": "Todo not found",
+		})
+		return
+	}
 
 	rnd.JSON(w, http.StatusOK, renderer.M{
 		"message": "Todo deleted successfully",
@@ -163,7 +233,9 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	stopChan := make(chan os.Signal)
+	defer db.Close()
+
+	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt)
 
 	r := chi.NewRouter()
@@ -193,8 +265,8 @@ func main() {
 	<-stopChan
 	log.Println("Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	srv.Shutdown(ctx)
 	defer cancel()
+	srv.Shutdown(ctx)
 	log.Println("Server gracefully stopped!")
 }
 

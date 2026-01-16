@@ -79,7 +79,7 @@
                         </div>
                       </form>
                       <ul class="list-group">
-                        <li class="list-group-item" :class="{ 'checked': todo.completed, 'not-checked': !todo.completed }" v-for="(todo, todoIndex) in todos" v-on:click="toggleTodo(todo, todoIndex)">
+                        <li class="list-group-item" :class="{ 'checked': todo.completed, 'not-checked': !todo.completed }" v-for="(todo, todoIndex) in filteredTodos" v-on:click="toggleTodo(todo, todoIndex)">
                             <i :class="{'fa fa-circle': !todo.completed, 'fa fa-check-circle text-success': todo.completed }">&nbsp;</i>
                             <span :class="{ 'del': todo.completed }" v-html="todo.title"></span>
                             <div class="btn-group float-right" role="group" aria-label="Basic example">
