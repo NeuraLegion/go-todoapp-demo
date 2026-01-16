@@ -55,6 +55,12 @@
             border-radius: 0 !important;
             cursor: pointer;
         }
+
+        .highlight {
+            background-color: #ffeb3b;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
     </style>
   </head>
   <body>
@@ -79,9 +85,9 @@
                         </div>
                       </form>
                       <ul class="list-group">
-                        <li class="list-group-item" :class="{ 'checked': todo.completed, 'not-checked': !todo.completed }" v-for="(todo, todoIndex) in filteredTodos" v-on:click="toggleTodo(todo, todoIndex)">
+                        <li class="list-group-item" :class="{ 'checked': todo.completed, 'not-checked': !todo.completed }" v-for="(todo, todoIndex) in todos" v-on:click="toggleTodo(todo, todoIndex)">
                             <i :class="{'fa fa-circle': !todo.completed, 'fa fa-check-circle text-success': todo.completed }">&nbsp;</i>
-                            <span :class="{ 'del': todo.completed }" v-html="todo.title"></span>
+                            <span :class="{ 'del': todo.completed }" v-html="highlightSearch(todo.title)"></span>
                             <div class="btn-group float-right" role="group" aria-label="Basic example">
                               <button type="button" class="btn btn-success btn-sm custom-button" v-on:click.prevent.stop v-on:click="editTodo(todo, todoIndex)"><span class="fa fa-edit"></span></button>
                               <button type="button" class="btn btn-danger btn-sm custom-button" v-on:click.prevent.stop v-on:click="deleteTodo(todo, todoIndex)"><span class="fa fa-trash"></span></button>
@@ -89,7 +95,7 @@
                         </li>
                       </ul>
                       <div v-if="searchText.length > 0">
-                          <p v-html="'Showing results for: ' + searchText"></p>
+                          <p v-html="'Showing results for: ' + searchText + ' (' + todos.length + ' found)'"></p>
                       </div>
                   </div>
                 </div>
@@ -107,21 +113,36 @@
                 showError: false,
                 enableEdit: false,
                 searchText: '',
+                searchTimeout: null,
                 todo: { id: '', title: '', completed: false },
                 todos: []
             },
             async mounted() {
-                const response = await this.$http.get('todo');
-                this.todos = response.body.data;
+                await this.fetchTodos();
             },
-            computed: {
-                filteredTodos() {
-                    return this.todos.filter((todo) => this.searchTodo(todo));
+            watch: {
+                searchText(newVal) {
+                    if (this.searchTimeout) {
+                        clearTimeout(this.searchTimeout);
+                    }
+                    this.searchTimeout = setTimeout(() => {
+                        this.fetchTodos(newVal);
+                    }, 300);
                 }
             },
             methods: {
-                searchTodo(todo) {
-                  return todo.title.toLowerCase().includes(this.searchText.toLowerCase());
+                async fetchTodos(search = '') {
+                    const url = search ? `todo?search=${encodeURIComponent(search)}` : 'todo';
+                    const response = await this.$http.get(url);
+                    this.todos = response.body.data;
+                },
+                highlightSearch(title) {
+                    if (this.searchText.length === 0) return title;
+                    const regex = new RegExp(`(${this.escapeRegex(this.searchText)})`, 'gi');
+                    return title.replace(regex, '<span class="highlight">$1</span>');
+                },
+                escapeRegex(string) {
+                    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 },
                 async addTodo() {
                     if (this.todo.title === '') {
