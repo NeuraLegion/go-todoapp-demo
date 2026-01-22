@@ -70,6 +70,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	rnd.HTMLString(w, http.StatusOK, string(body))
 }
 
+// Maximum number of todos to prevent crawler from creating infinite entry points
+const maxTodos = 100
+
 func createTodo(w http.ResponseWriter, r *http.Request) {
 	var data todo
 
@@ -86,6 +89,43 @@ func createTodo(w http.ResponseWriter, r *http.Request) {
 	if data.Title == "" {
 		rnd.JSON(w, http.StatusBadRequest, renderer.M{
 			"message": "The title field is required",
+		})
+		return
+	}
+
+	// Check if we've reached the maximum number of todos (prevents crawler entry point explosion)
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM todos").Scan(&count)
+	if err != nil {
+		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to check todo count",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if count >= maxTodos {
+		rnd.JSON(w, http.StatusConflict, renderer.M{
+			"message": "Maximum number of todos reached",
+			"limit":   maxTodos,
+		})
+		return
+	}
+
+	// Check for duplicate title (prevents crawler from adding same todo multiple times)
+	var existingCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM todos WHERE title = ?", data.Title).Scan(&existingCount)
+	if err != nil {
+		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to check for duplicates",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	if existingCount > 0 {
+		rnd.JSON(w, http.StatusConflict, renderer.M{
+			"message": "A todo with this title already exists",
 		})
 		return
 	}
