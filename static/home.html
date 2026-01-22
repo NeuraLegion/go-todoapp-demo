@@ -61,6 +61,27 @@
             padding: 0 2px;
             border-radius: 2px;
         }
+
+        .error {
+            border-color: #e74c3c !important;
+            background-color: #fdecea !important;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            padding: 8px 10px;
+            background-color: #fdecea;
+            border: 1px solid #e74c3c;
+            border-top: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .error-message i {
+            font-size: 16px;
+        }
     </style>
   </head>
   <body>
@@ -82,6 +103,10 @@
                           <span class="input-group-btn">
                             <button class="btn custom-button" :class="{'btn-success' : !enableEdit, 'btn-warning' : enableEdit}" type="button"  v-on:click="addTodo"><span :class="{'fa fa-plus' : !enableEdit, 'fa fa-edit' : enableEdit}"></span></button>
                           </span>
+                        </div>
+                        <div v-if="showError" class="error-message">
+                            <i class="fa fa-exclamation-circle"></i>
+                            @{ errorMessage }
                         </div>
                       </form>
                       <ul class="list-group">
@@ -111,6 +136,7 @@
             delimiters: ['@{', '}'],
             data: {
                 showError: false,
+                errorMessage: '',
                 enableEdit: false,
                 searchText: '',
                 searchTimeout: null,
@@ -132,9 +158,14 @@
             },
             methods: {
                 async fetchTodos(search = '') {
-                    const url = search ? `todo?search=${encodeURIComponent(search)}` : 'todo';
-                    const response = await this.$http.get(url);
-                    this.todos = response.body.data;
+                    try {
+                        const url = search ? `todo?search=${encodeURIComponent(search)}` : 'todo';
+                        const response = await this.$http.get(url);
+                        this.todos = response.body.data;
+                        this.clearError();
+                    } catch (error) {
+                        this.setError('Failed to fetch todos. Please try again.');
+                    }
                 },
                 highlightSearch(title) {
                     if (this.searchText.length === 0) return title;
@@ -146,33 +177,38 @@
                 },
                 async addTodo() {
                     if (this.todo.title === '') {
-                        this.showError = true;
+                        this.setError('Please enter a todo title');
                         return;
                     }
 
-                    this.showError = false;
-                    if (this.enableEdit) {
-                        const response = await this.$http.put(
-                            `todo/${this.todo.id}`,
-                            this.todo
-                        );
-                        if (response.status === 200) {
-                            this.todos[this.todo.todoIndex] = this.todo;
-                        }
-                        this.reset();
-                        this.enableEdit = false;
-                    } else {
-                        const response = await this.$http.post('todo', {
-                            title: this.todo.title
-                        });
-                        if (response.status === 201) {
-                            this.todos.push({
-                                id: response.body.todo_id,
-                                title: this.todo.title,
-                                completed: false
-                            });
+                    this.clearError();
+                    
+                    try {
+                        if (this.enableEdit) {
+                            const response = await this.$http.put(
+                                `todo/${this.todo.id}`,
+                                this.todo
+                            );
+                            if (response.status === 200) {
+                                this.todos[this.todo.todoIndex] = this.todo;
+                            }
                             this.reset();
+                            this.enableEdit = false;
+                        } else {
+                            const response = await this.$http.post('todo', {
+                                title: this.todo.title
+                            });
+                            if (response.status === 201) {
+                                this.todos.push({
+                                    id: response.body.todo_id,
+                                    title: this.todo.title,
+                                    completed: false
+                                });
+                                this.reset();
+                            }
                         }
+                    } catch (error) {
+                        this.setError('Failed to save todo. Please try again.');
                     }
                 },
                 checkForEnter(event) {
@@ -185,14 +221,19 @@
 
                     completedToggle = todo.completed !== true;
 
-                    const response = await this.$http.put(`todo/${todo.id}`, {
-                        id: todo.id,
-                        title: todo.title,
-                        completed: completedToggle
-                    });
+                    try {
+                        const response = await this.$http.put(`todo/${todo.id}`, {
+                            id: todo.id,
+                            title: todo.title,
+                            completed: completedToggle
+                        });
 
-                    if (response.status === 200) {
-                        this.todos[todoIndex].completed = completedToggle;
+                        if (response.status === 200) {
+                            this.todos[todoIndex].completed = completedToggle;
+                            this.clearError();
+                        }
+                    } catch (error) {
+                        this.setError('Failed to update todo status.');
                     }
                 },
                 editTodo(todo, todoIndex) {
@@ -202,12 +243,25 @@
                 },
                 async deleteTodo(todo, todoIndex) {
                     if (confirm('Are you sure ?')) {
-                        const response = await this.$http.delete(`todo/${todo.id}`);
-                        if (response.status === 200) {
-                            this.todos.splice(todoIndex, 1);
-                            this.reset();
+                        try {
+                            const response = await this.$http.delete(`todo/${todo.id}`);
+                            if (response.status === 200) {
+                                this.todos.splice(todoIndex, 1);
+                                this.clearError();
+                                this.reset();
+                            }
+                        } catch (error) {
+                            this.setError('Failed to delete todo.');
                         }
                     }
+                },
+                setError(message) {
+                    this.showError = true;
+                    this.errorMessage = message;
+                },
+                clearError() {
+                    this.showError = false;
+                    this.errorMessage = '';
                 },
                 reset() {
                     this.todo = { id: '', title: '', completed: false };
