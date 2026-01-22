@@ -141,7 +141,8 @@ func createTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO todos (id, title, completed, created_at) VALUES ('" + id.String() + "', '" + data.Title + "', 0, datetime('now'))",
+		"INSERT INTO todos (id, title, completed, created_at) VALUES (?, ?, 0, datetime('now'))",
+		id.String(), data.Title,
 	)
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
@@ -187,7 +188,8 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 		completed = "1"
 	}
 	result, err := db.Exec(
-		"UPDATE todos SET title = '" + data.Title + "', completed = " + completed + " WHERE id = '" + id.String() + "'",
+		"UPDATE todos SET title = ?, completed = ? WHERE id = ?",
+		data.Title, completed, id.String(),
 	)
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
@@ -214,12 +216,16 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 func fetchTodos(w http.ResponseWriter, r *http.Request) {
 	search := r.URL.Query().Get("search")
 	query := "SELECT id, title, completed, created_at FROM todos"
+	var rows *sql.Rows
+	var err error
 	if search != "" {
-		query += " WHERE title LIKE '%" + search + "%'"
+		query += " WHERE title LIKE ? ORDER BY created_at DESC"
+		rows, err = db.Query(query, "%"+search+"%")
+	} else {
+		query += " ORDER BY created_at DESC"
+		rows, err = db.Query(query)
 	}
-	query += " ORDER BY created_at DESC"
 
-	rows, err := db.Query(query)
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
 			"message": "Failed to fetch todos",
@@ -257,7 +263,7 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.Exec("DELETE FROM todos WHERE id = '" + id.String() + "'")
+	result, err := db.Exec("DELETE FROM todos WHERE id = ?", id.String())
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
 			"message":  "Failed to delete todo",
