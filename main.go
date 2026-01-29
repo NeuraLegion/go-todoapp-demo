@@ -141,7 +141,8 @@ func createTodo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec(
-		"INSERT INTO todos (id, title, completed, created_at) VALUES ('" + id.String() + "', '" + data.Title + "', 0, datetime('now'))",
+		"INSERT INTO todos (id, title, completed, created_at) VALUES (?, ?, 0, datetime('now'))",
+		id.String(), data.Title,
 	)
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
@@ -182,12 +183,13 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	completed := "0"
+	completed := 0
 	if data.Completed {
-		completed = "1"
+		completed = 1
 	}
 	result, err := db.Exec(
-		"UPDATE todos SET title = '" + data.Title + "', completed = " + completed + " WHERE id = '" + id.String() + "'",
+		"UPDATE todos SET title = ?, completed = ? WHERE id = ?",
+		data.Title, completed, id.String(),
 	)
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
@@ -257,7 +259,7 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.Exec("DELETE FROM todos WHERE id = '" + id.String() + "'")
+	result, err := db.Exec("DELETE FROM todos WHERE id = ?", id.String())
 	if err != nil {
 		rnd.JSON(w, http.StatusInternalServerError, renderer.M{
 			"message":  "Failed to delete todo",
