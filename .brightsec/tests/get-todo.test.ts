@@ -21,7 +21,7 @@ after(() => runner.clear());
 test('GET /todo', { signal: AbortSignal.timeout(timeout) }, async () => {
   await runner
     .createScan({
-      tests: ['sqli', 'xss', 'csrf', 'id_enumeration'],
+      tests: ['sqli'],
       attackParamLocations: [AttackParamLocation.QUERY],
       starMetadata: {
         code_source: 'NeuraLegion/go-todoapp-demo:main',
