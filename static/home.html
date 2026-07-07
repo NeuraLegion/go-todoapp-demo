@@ -112,7 +112,7 @@
                       <ul class="list-group">
                         <li class="list-group-item" :class="{ 'checked': todo.completed, 'not-checked': !todo.completed }" v-for="(todo, todoIndex) in todos" v-on:click="toggleTodo(todo, todoIndex)">
                             <i :class="{'fa fa-circle': !todo.completed, 'fa fa-check-circle text-success': todo.completed }">&nbsp;</i>
-                            <span :class="{ 'del': todo.completed }" v-html="highlightSearch(todo.title)"></span>
+                            <span :class="{ 'del': todo.completed }">@{ todo.title }</span>
                             <div class="btn-group float-right" role="group" aria-label="Basic example">
                               <button type="button" class="btn btn-success btn-sm custom-button" v-on:click.prevent.stop v-on:click="editTodo(todo, todoIndex)"><span class="fa fa-edit"></span></button>
                               <button type="button" class="btn btn-danger btn-sm custom-button" v-on:click.prevent.stop v-on:click="deleteTodo(todo, todoIndex)"><span class="fa fa-trash"></span></button>
@@ -120,7 +120,7 @@
                         </li>
                       </ul>
                       <div v-if="searchText.length > 0">
-                          <p v-html="'Showing results for: ' + searchText + ' (' + todos.length + ' found)'"></p>
+                          <p>@{ 'Showing results for: ' + searchText + ' (' + todos.length + ' found)' }</p>
                       </div>
                   </div>
                 </div>
@@ -168,9 +168,7 @@
                     }
                 },
                 highlightSearch(title) {
-                    if (this.searchText.length === 0) return title;
-                    const regex = new RegExp(`(${this.escapeRegex(this.searchText)})`, 'gi');
-                    return title.replace(regex, '<span class="highlight">$1</span>');
+                    return title;
                 },
                 escapeRegex(string) {
                     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -200,9 +198,9 @@
                             });
                             if (response.status === 201) {
                                 this.todos.push({
-                                    id: response.body.todo_id,
-                                    title: this.todo.title,
-                                    completed: false
+                                    id: response.body.data.id,
+                                    title: response.body.data.title,
+                                    completed: response.body.data.completed
                                 });
                                 this.reset();
                             }
