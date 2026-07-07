@@ -168,9 +168,7 @@
                     }
                 },
                 highlightSearch(title) {
-                    if (this.searchText.length === 0) return title;
-                    const regex = new RegExp(`(${this.escapeRegex(this.searchText)})`, 'gi');
-                    return title.replace(regex, '<span class="highlight">$1</span>');
+                    return title;
                 },
                 escapeRegex(string) {
                     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -200,9 +198,9 @@
                             });
                             if (response.status === 201) {
                                 this.todos.push({
-                                    id: response.body.todo_id,
-                                    title: this.todo.title,
-                                    completed: false
+                                    id: response.body.data.id,
+                                    title: response.body.data.title,
+                                    completed: response.body.data.completed
                                 });
                                 this.reset();
                             }
